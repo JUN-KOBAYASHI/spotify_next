@@ -1,19 +1,17 @@
 /* -----------------------------------------------------------------------------------------
  * M5AtomS3 を使って spotify で再生中のタイトルとカバー写真を表示し画面を押すと次のリストに
  * 進むプログラム
- * 2024/7/4 KOBAYASHI Jun.
+ * 2024/7/4  Create KOBAYASHI Jun.
+ * 2024/7/11 Update KOBAYASHI Jun.
  * -----------------------------------------------------------------------------------------
 */ 
 
 #include "M5Unified.h"
 #include <WiFi.h>
 #include <WiFiMulti.h>
+#include "spotify_logo.h"
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-
-// spotify logo
-#include "spotify_logo.h"
-
 
 // utf8対応
 #include "efontEnableJa.h"
@@ -108,7 +106,6 @@ void setup() {
   WiFiMulti.addAP("WiFi_AP1", "12345678");
   WiFiMulti.addAP("WiFi_AP2", "12345678");
   WiFiMulti.addAP("WiFi_AP2", "12345678");
-
   bool done = true;
   while (done) {
     Serial.print("WiFi connecting");
@@ -133,10 +130,14 @@ void setup() {
 
   Serial.println("+ spotify logo");
   update_lotate();
-  M5.Display.fillScreen(TFT_BLACK);
   M5.Display.setBrightness(BRIGTNESS);
   M5.Display.setRotation(rotate_angle);
-  M5.Display.drawJpg(spotify_logo, sizeof spotify_logo, 0, 0);  //背景の表示
+  SpriteB.createSprite(128, 128);
+  SpriteB.fillScreen(TFT_BLACK);
+  SpriteB.drawJpg(spotify_logo, sizeof spotify_logo, 0, 0);  //背景の表示
+  SpriteB.pushSprite(&M5.Display, 0, 0);
+  SpriteB.deleteSprite();
+
 
 }
 
@@ -429,7 +430,7 @@ bool Get_api_playback() {
       Serial.println(song_url);
       check_url = song_url;
       background_buffer_length = sizeof(background_buffer);
-      String get_url = "https://example.com/_resize.cgi?_u=" + img_url;
+      String get_url = "https://example.com/_resize/_r.cgi?_u=" + img_url;
       Serial.println(get_url);
       long ret = doHttpGet(get_url, background_buffer, &background_buffer_length);
       if (ret != true) {
@@ -459,10 +460,14 @@ bool Get_api_playback() {
         SpriteB.print(title_artist);
         SpriteB.pushSprite(&M5.Display, 0, 0);
       }
+
+      SpriteB.fillScreen(TFT_BLACK);
+      SpriteB.drawJpg(background_buffer, sizeof background_buffer, 0, 0);  // カバー画像表示
+      SpriteB.pushSprite(&M5.Display, 0, 0);
+
       SpriteB.deleteSprite();
 
-      M5.Display.drawJpg(background_buffer, sizeof background_buffer, 0, 0);  // カバー画像表示
-      M5.update();
+
     }
     return true;
   }
@@ -741,3 +746,6 @@ void update_lotate() {
   }
 
 }
+
+
+

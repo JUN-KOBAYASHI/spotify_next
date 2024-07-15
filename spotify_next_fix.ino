@@ -19,11 +19,27 @@
 
 // sprite
 M5Canvas SpriteB;
+M5Canvas SpriteC;
+
+// ===================================================================================================
+// WiFi
+const char* ssid1     = "SSID1";
+const char* ssid1_key = "12345678";
+const char* ssid2     = "SSID2";
+const char* ssid2_key = "12345678";
+const char* ssid3     = "SSID3";
+const char* ssid3_key = "12345678";
+
+// resize url
+const String resize_url = "https://example.com/_resize/_r.cgi?_u=";
 
 // spotify
 const char* client_id = "********************************";
 const char* client_secret = "********************************";
 String refresh_token = "***********************************************************************************************************************************";
+
+
+// ===================================================================================================
 
 String spotifyAccessToken = "";
 String check_url = "";
@@ -103,9 +119,10 @@ void setup() {
 
   // WiFi  
   Serial.println("wifi begin");
-  WiFiMulti.addAP("WiFi_AP1", "12345678");
-  WiFiMulti.addAP("WiFi_AP2", "12345678");
-  WiFiMulti.addAP("WiFi_AP2", "12345678");
+  WiFiMulti.addAP(ssid1, ssid1_key);
+  WiFiMulti.addAP(ssid2, ssid2_key);
+  WiFiMulti.addAP(ssid2, ssid3_key);
+
   bool done = true;
   while (done) {
     Serial.print("WiFi connecting");
@@ -430,7 +447,7 @@ bool Get_api_playback() {
       Serial.println(song_url);
       check_url = song_url;
       background_buffer_length = sizeof(background_buffer);
-      String get_url = "https://example.com/_resize/_r.cgi?_u=" + img_url;
+      String get_url = resize_url + img_url;
       Serial.println(get_url);
       long ret = doHttpGet(get_url, background_buffer, &background_buffer_length);
       if (ret != true) {
@@ -440,6 +457,10 @@ bool Get_api_playback() {
       Serial.println("----> output");
       update_lotate();
       M5.Display.setRotation(rotate_angle);
+
+      SpriteC.createSprite(128, 128);
+      SpriteC.drawJpg(background_buffer, sizeof background_buffer, 0, 0);  // カバー画像表示
+
 
       //------------------------------------------------------------------------------------
       String title_artist = title + " / " + artist;
@@ -461,11 +482,10 @@ bool Get_api_playback() {
         SpriteB.pushSprite(&M5.Display, 0, 0);
       }
 
-      SpriteB.fillScreen(TFT_BLACK);
-      SpriteB.drawJpg(background_buffer, sizeof background_buffer, 0, 0);  // カバー画像表示
-      SpriteB.pushSprite(&M5.Display, 0, 0);
+      SpriteC.pushSprite(&M5.Display, 0, 0);
 
       SpriteB.deleteSprite();
+      SpriteC.deleteSprite();
 
 
     }
@@ -746,6 +766,3 @@ void update_lotate() {
   }
 
 }
-
-
-

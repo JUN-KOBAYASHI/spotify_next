@@ -31,7 +31,7 @@ const char* ssid3     = "SSID3";
 const char* ssid3_key = "12345678";
 
 // resize url
-const String resize_url = "https://example.com/_resize/_r.cgi?_u=";
+const String resize_url = "https://example.com/_resize/_resize.php?_u=";
 
 // spotify
 const char* client_id = "********************************";

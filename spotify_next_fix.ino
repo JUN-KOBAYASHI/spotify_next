@@ -1,8 +1,8 @@
 /* -----------------------------------------------------------------------------------------
  * M5AtomS3 を使って spotify で再生中のタイトルとカバー写真を表示し画面を押すと次のリストに
  * 進むプログラム
- * 2024/7/4  Create KOBAYASHI Jun.
- * 2024/7/11 Update KOBAYASHI Jun.
+ * 2024/7/4 Create KOBAYASHI Jun.
+ * 2024/8/6 Update KOBAYASHI Jun.
  * -----------------------------------------------------------------------------------------
 */ 
 
@@ -48,7 +48,7 @@ bool is_processing = false;
 
 
 // 画面の明るさ 、処理バッファ
-#define BRIGTNESS 30
+#define BRIGTNESS 60
 #define BACKGROUND_BUFFER_SIZE 120000
 unsigned long background_buffer_length;
 unsigned char background_buffer[BACKGROUND_BUFFER_SIZE];
@@ -121,7 +121,7 @@ void setup() {
   Serial.println("wifi begin");
   WiFiMulti.addAP(ssid1, ssid1_key);
   WiFiMulti.addAP(ssid2, ssid2_key);
-  WiFiMulti.addAP(ssid2, ssid3_key);
+  WiFiMulti.addAP(ssid3, ssid3_key);
 
   bool done = true;
   while (done) {
@@ -154,8 +154,6 @@ void setup() {
   SpriteB.drawJpg(spotify_logo, sizeof spotify_logo, 0, 0);  //背景の表示
   SpriteB.pushSprite(&M5.Display, 0, 0);
   SpriteB.deleteSprite();
-
-
 }
 
 //-------------------------------------------------------------------------------------------
@@ -458,21 +456,29 @@ bool Get_api_playback() {
       update_lotate();
       M5.Display.setRotation(rotate_angle);
 
-      SpriteC.createSprite(128, 128);
-      SpriteC.drawJpg(background_buffer, sizeof background_buffer, 0, 0);  // カバー画像表示
-
-
       //------------------------------------------------------------------------------------
       String title_artist = title + " / " + artist;
       // Serial.println(title_artist);
-      SpriteB.createSprite(128, 128);
+//      SpriteB.createSprite(128, 128);
+      if (!SpriteB.createSprite(128, 128)) {
+          Serial.println("### [NG] Failed to create SpriteB. Out of memory?");
+      } else {
+          Serial.println("### [OK] SpriteB created successfully.");
+      }
       SpriteB.setTextScroll(false);
       SpriteB.setTextWrap(false);
       // SpriteB.setFont(&fonts::lgfxJapanGothicP_36); // 文字はきれいだけど表示できないものがある
       SpriteB.setFont(&fonts::efontJA_24);
       SpriteB.setTextSize(1.8);
-      int text_width = SpriteB.textWidth(title_artist);
+      SpriteB.fillScreen(TFT_BLACK);
+        SpriteB.pushSprite(&M5.Display, 0, 0);
 
+      int text_width = SpriteB.textWidth(title_artist);
+      Serial.print("[debug] text width : ");
+      Serial.println(text_width);
+      if(text_width < 600){
+        text_width = 800;
+      }
       // 流れる文字処理
       for (int i = 128; i >= ((text_width * 2) * -1) - 128; i--) {
         SpriteB.fillScreen(TFT_BLACK);
@@ -481,10 +487,17 @@ bool Get_api_playback() {
         SpriteB.print(title_artist);
         SpriteB.pushSprite(&M5.Display, 0, 0);
       }
-
-      SpriteC.pushSprite(&M5.Display, 0, 0);
-
+      Serial.println("---");
+      Serial.println(((text_width * 2) * -1) - 128);
+      Serial.println("---");
       SpriteB.deleteSprite();
+      if (!SpriteC.createSprite(128, 128)) {
+          Serial.println("### [NG] Failed to create SpriteC. Out of memory?");
+      } else {
+          Serial.println("### [OK] SpriteC created successfully.");
+      }
+      SpriteC.drawJpg(background_buffer, sizeof background_buffer, 0, 0);  // カバー画像表示
+      SpriteC.pushSprite(&M5.Display, 0, 0);
       SpriteC.deleteSprite();
 
 

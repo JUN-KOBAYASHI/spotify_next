@@ -19,7 +19,6 @@
 
 // sprite
 M5Canvas SpriteB;
-M5Canvas SpriteC;
 
 // ===================================================================================================
 // WiFi
@@ -40,6 +39,7 @@ String refresh_token = "********************************************************
 
 
 // ===================================================================================================
+
 
 String spotifyAccessToken = "";
 String check_url = "";
@@ -456,10 +456,12 @@ bool Get_api_playback() {
       update_lotate();
       M5.Display.setRotation(rotate_angle);
 
+
       //------------------------------------------------------------------------------------
       String title_artist = title + " / " + artist;
       // Serial.println(title_artist);
 //      SpriteB.createSprite(128, 128);
+      SpriteB.setColorDepth(1);
       if (!SpriteB.createSprite(128, 128)) {
           Serial.println("### [NG] Failed to create SpriteB. Out of memory?");
       } else {
@@ -490,16 +492,12 @@ bool Get_api_playback() {
       Serial.println("---");
       Serial.println(((text_width * 2) * -1) - 128);
       Serial.println("---");
-      SpriteB.deleteSprite();
-      if (!SpriteC.createSprite(128, 128)) {
-          Serial.println("### [NG] Failed to create SpriteC. Out of memory?");
-      } else {
-          Serial.println("### [OK] SpriteC created successfully.");
-      }
-      SpriteC.drawJpg(background_buffer, sizeof background_buffer, 0, 0);  // カバー画像表示
-      SpriteC.pushSprite(&M5.Display, 0, 0);
-      SpriteC.deleteSprite();
 
+      SpriteB.setColorDepth(16);
+      Serial.println("### [OK] SpriteB2 created successfully.");
+      SpriteB.drawJpg(background_buffer, sizeof background_buffer, 0, 0);  // カバー画像表示
+      SpriteB.pushSprite(&M5.Display, 0, 0);
+      SpriteB.deleteSprite();
 
     }
     return true;
@@ -698,6 +696,18 @@ bool Get_is_playing() {
       return false;
     }
   }
+
+  if (status_code == 400) {
+    Serial.println("+ status_code: 400");
+    Post_refresh_api();
+
+    delay(500);   //500ms待機
+    M5.update();  // 本体状態更新
+    httpClient.end();
+    is_play = false;
+    return false;
+  }
+
 
   if (status_code == 401) {
     Serial.println("+ status_code: 401");

@@ -2,7 +2,7 @@
  * M5AtomS3 を使って spotify で再生中のタイトルとカバー写真を表示し画面を押すと次のリストに
  * 進むプログラム
  * 2024/7/4 Create KOBAYASHI Jun.
- * 2024/8/6 Update KOBAYASHI Jun.
+ * 2024/9/5 Update KOBAYASHI Jun.
  * -----------------------------------------------------------------------------------------
 */ 
 
@@ -40,11 +40,11 @@ String refresh_token = "********************************************************
 
 // ===================================================================================================
 
-
 String spotifyAccessToken = "";
 String check_url = "";
 bool is_play = false;
-bool is_processing = false;
+volatile bool is_processing = false;
+volatile bool is_next = false;
 
 
 // 画面の明るさ 、処理バッファ
@@ -78,6 +78,9 @@ int rotate_angle = 0;
 // WiFi 定義
 WiFiMulti WiFiMulti;
 
+// button gpio number
+const uint8_t buttonA_GPIO = 41;
+
 //-------------------------------------------------------------------------------------------
 // タイマー処理
 //-------------------------------------------------------------------------------------------
@@ -91,6 +94,13 @@ void onTimer() {
   }
 }
 
+static void buttonA_isr(void) {
+  M5.update();
+  Serial.printf("A interrupt %d\n", millis() );
+  if (is_next != true) {
+      is_next = true;
+  }
+}
 
 
 
@@ -116,6 +126,8 @@ void setup() {
   // タイマ有効化
   timerAlarmEnable(timer);
 
+  // ボタン向け割り込み
+  attachInterrupt(digitalPinToInterrupt(buttonA_GPIO), buttonA_isr, FALLING);
 
   // WiFi  
   Serial.println("wifi begin");
@@ -160,7 +172,17 @@ void setup() {
 // loop
 //-------------------------------------------------------------------------------------------
 void loop() {
-  M5.update();  // 本体状態更新
+  // M5.update();  // 本体状態更新
+
+  if(is_next == true){
+    Serial.println("### debug : is_next = true");
+    is_next = false;
+      if (Post_next_api() != true) {
+        // refresh token を更新したかもしれないので１回だけリランする
+        Post_next_api();
+      };
+      Get_api_playback();
+  }
 
   // 処理中であれば
   if (is_processing != false) {
@@ -187,30 +209,7 @@ void loop() {
     is_processing = false;
   }
 
-  //ボタンが押されていれば
-  if (M5.BtnA.wasClicked()) { 
-    Serial.println("#### BtnA.wasClicked");
-
-      if (Post_next_api() != true) {
-        // refresh token を更新したかもしれないので１回だけリランする
-        Post_next_api();
-      };
-      Get_api_playback();
-  }
-
-  if (M5.BtnA.wasHold()) {  //ボタンが0.5秒以上押されていれば
-    Serial.println("#### BtnA.wasHold");
-    update_lotate();
-
-    M5.Display.wakeup();
-    M5.Display.setBrightness(BRIGTNESS);
-
-    if (Get_api_playback() != true) {
-      // refresh token を更新したかもしれないので１回だけリランする
-      Get_api_playback();
-    };
-  }
-
+  // 一時停止
   if (M5.BtnA.wasDoubleClicked()) {  // ボタンを0.5秒以内に2回クリックして0.5秒経過したか
     Serial.println("#### BtnA.wasDoubleClicked");
     update_lotate();
@@ -306,7 +305,7 @@ bool Post_start_stop_api() {
     Serial.println("+ status_code: 401");
     Post_refresh_api();
 
-    M5.update();  // 本体状態更新
+    // M5.update();  // 本体状態更新
     httpClient.end();
     return false;
   }
@@ -315,7 +314,7 @@ bool Post_start_stop_api() {
     // spotifyが動いていないなど
     Serial.println("+ status_code: 404");
 
-    M5.update();  // 本体状態更新
+    // M5.update();  // 本体状態更新
     httpClient.end();
     return false;
   }
@@ -365,7 +364,6 @@ bool Post_next_api() {
     Post_refresh_api();
 
     delay(500);   //500ms待機
-    M5.update();  // 本体状態更新
     httpClient.end();
     return false;
   }
@@ -375,7 +373,6 @@ bool Post_next_api() {
     Serial.println("+ status_code: 404");
 
     delay(500);   //500ms待機
-    M5.update();  // 本体状態更新
     httpClient.end();
     return false;
   }
@@ -478,25 +475,31 @@ bool Get_api_playback() {
       int text_width = SpriteB.textWidth(title_artist);
       Serial.print("[debug] text width : ");
       Serial.println(text_width);
-      if(text_width < 600){
-        text_width = 800;
-      }
+      Serial.println("---");
+
       // 流れる文字処理
-      for (int i = 128; i >= ((text_width * 2) * -1) - 128; i--) {
+      for (int i = 128; i >= ((text_width + 128 + 100 ) * -1); i--) {
         SpriteB.fillScreen(TFT_BLACK);
         SpriteB.setTextColor(TFT_WHITE);
         SpriteB.setCursor(i, 45);
         SpriteB.print(title_artist);
         SpriteB.pushSprite(&M5.Display, 0, 0);
+        if(is_next == true){
+          SpriteB.fillScreen(TFT_BLACK);
+          SpriteB.pushSprite(&M5.Display, 0, 0);
+          break;
+        }
+        Serial.println(i);
       }
-      Serial.println("---");
-      Serial.println(((text_width * 2) * -1) - 128);
+
       Serial.println("---");
 
-      SpriteB.setColorDepth(16);
-      Serial.println("### [OK] SpriteB2 created successfully.");
-      SpriteB.drawJpg(background_buffer, sizeof background_buffer, 0, 0);  // カバー画像表示
-      SpriteB.pushSprite(&M5.Display, 0, 0);
+      if(is_next == false){
+        SpriteB.setColorDepth(16);
+        Serial.println("### [OK] SpriteB2 created successfully.");
+        SpriteB.drawJpg(background_buffer, sizeof background_buffer, 0, 0);  // カバー画像表示
+        SpriteB.pushSprite(&M5.Display, 0, 0);
+      }
       SpriteB.deleteSprite();
 
     }
@@ -508,7 +511,6 @@ bool Get_api_playback() {
     Post_refresh_api();
 
     delay(500);   //500ms待機
-    M5.update();  // 本体状態更新
     httpClient.end();
     return false;
   }
@@ -518,7 +520,6 @@ bool Get_api_playback() {
     Serial.println("+ status_code: 404");
 
     delay(500);   //500ms待機
-    M5.update();  // 本体状態更新
     httpClient.end();
     return false;
   }
@@ -702,7 +703,6 @@ bool Get_is_playing() {
     Post_refresh_api();
 
     delay(500);   //500ms待機
-    M5.update();  // 本体状態更新
     httpClient.end();
     is_play = false;
     return false;
@@ -714,7 +714,6 @@ bool Get_is_playing() {
     Post_refresh_api();
 
     delay(500);   //500ms待機
-    M5.update();  // 本体状態更新
     httpClient.end();
     is_play = false;
     return false;
@@ -725,7 +724,6 @@ bool Get_is_playing() {
     Serial.println("+ status_code: 404");
 
     delay(500);   //500ms待機
-    M5.update();  // 本体状態更新
     httpClient.end();
     return false;
   }
@@ -789,3 +787,4 @@ void update_lotate() {
   }
 
 }
+

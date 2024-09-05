@@ -688,6 +688,10 @@ bool Get_is_playing() {
         Serial.println(is_playing);
         if (is_playing == "true") {
           is_play = true;
+          if(M5.Display.getBrightness() == 0){
+            M5.Display.wakeup();
+            M5.Display.setBrightness(BRIGTNESS);
+          }
         }
       }
       return true;

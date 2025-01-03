@@ -1,14 +1,13 @@
 /* -----------------------------------------------------------------------------------------
  * M5AtomS3 を使って spotify で再生中のタイトルとカバー写真を表示し画面を押すと次のリストに
  * 進むプログラム
- * 2024/7/4 Create KOBAYASHI Jun.
- * 2024/9/5 Update KOBAYASHI Jun.
+ * 2024/7/4  Create KOBAYASHI Jun.
+ * 2025/1/3  Update KOBAYASHI Jun.
  * -----------------------------------------------------------------------------------------
 */ 
 
 #include "M5Unified.h"
-#include <WiFi.h>
-#include <WiFiMulti.h>
+#include <WiFiManager.h>
 #include "spotify_logo.h"
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -22,12 +21,7 @@ M5Canvas SpriteB;
 
 // ===================================================================================================
 // WiFi
-const char* ssid1     = "SSID1";
-const char* ssid1_key = "12345678";
-const char* ssid2     = "SSID2";
-const char* ssid2_key = "12345678";
-const char* ssid3     = "SSID3";
-const char* ssid3_key = "12345678";
+// https://github.com/tzapu/WiFiManager
 
 // resize url
 const String resize_url = "https://example.com/_resize/_resize.php?_u=";
@@ -74,9 +68,6 @@ float gyroZ = 0;
 float temp = 0;
 int rotate_angle = 0;
 #define RAD_TO_DEG 57.324
-
-// WiFi 定義
-WiFiMulti WiFiMulti;
 
 // button gpio number
 const uint8_t buttonA_GPIO = 41;
@@ -131,20 +122,43 @@ void setup() {
 
   // WiFi  
   Serial.println("wifi begin");
-  WiFiMulti.addAP(ssid1, ssid1_key);
-  WiFiMulti.addAP(ssid2, ssid2_key);
-  WiFiMulti.addAP(ssid3, ssid3_key);
+  // Create WiFiManager instance
+  WiFiManager wm;
 
-  bool done = true;
-  while (done) {
-    Serial.print("WiFi connecting");
-    auto last = millis();
-    while (WiFiMulti.run() != WL_CONNECTED && last + 5000 > millis()) {
-      delay(500);
-      Serial.println("retry");
-    }
-    done = false;
+  const char* apSSID = "Spotify_next";
+  const char* apPassword = "password1234";
+
+  // Show QR code for SoftAP credentials
+  char qrContent[128];
+  snprintf(qrContent, sizeof(qrContent), "WIFI:S:%s;T:WPA;P:%s;;", apSSID, apPassword);
+
+  // Clear the screen
+  M5.Display.fillScreen(TFT_BLACK);
+
+  // Display QR code using built-in method
+  M5.Display.qrcode(qrContent, 0, 0, 128, 6); // x, y, width, version
+
+  // Start SoftAP for 10 seconds
+  wm.setConfigPortalTimeout(10); // Set timeout for SoftAP
+  if (!wm.startConfigPortal(apSSID, apPassword)) {
+    // M5.Display.println("SoftAP timeout or no configuration made");
+    Serial.println("\nSoftAP timeout or no configuration made");
   }
+
+  // Attempt to connect using saved credentials
+  if (!wm.autoConnect(apSSID, apPassword)) {
+    Serial.println("\nConneting wifi...");
+    M5.Display.println("WiFi connection failed");
+    delay(3000);
+    ESP.restart();
+  }
+
+  M5.Display.fillScreen(TFT_BLACK);
+  M5.Display.setCursor(0, 0);
+  M5.Display.println("WiFi connected!");
+  M5.Display.println("");
+  M5.Display.println("IP Address: ");
+  M5.Display.println(WiFi.localIP());
 
   // WiFi Conneted
   Serial.println("\nWiFi connected.");
@@ -489,7 +503,7 @@ bool Get_api_playback() {
           SpriteB.pushSprite(&M5.Display, 0, 0);
           break;
         }
-        Serial.println(i);
+//        Serial.println(i);
       }
 
       Serial.println("---");
@@ -791,4 +805,3 @@ void update_lotate() {
   }
 
 }
-
